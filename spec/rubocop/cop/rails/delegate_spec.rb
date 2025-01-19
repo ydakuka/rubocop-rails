@@ -277,6 +277,45 @@ RSpec.describe RuboCop::Cop::Rails::Delegate, :config do
     RUBY
   end
 
+  it 'works with private methods with preceding comments declared in inner classes' do
+    expect_offense(<<~RUBY)
+      class A
+        class B
+
+          private
+
+          def foo
+            bar.foo
+          end
+        end
+
+        def baz
+        ^^^ Use `delegate` to define delegations.
+          # comment1
+          # comment2
+          foo.baz
+        end
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class A
+        class B
+
+          private
+
+          def foo
+            bar.foo
+          end
+        end
+
+        # comment1
+      # comment2
+      delegate :baz, to: :foo
+      end
+    RUBY
+  end
+
   it 'ignores delegation with assignment' do
     expect_no_offenses(<<~RUBY)
       def new
