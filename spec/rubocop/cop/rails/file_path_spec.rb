@@ -327,6 +327,123 @@ RSpec.describe RuboCop::Cop::Rails::FilePath, :config do
   context 'when EnforcedStyle is `arguments`' do
     let(:cop_config) { { 'EnforcedStyle' => 'arguments' } }
 
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          Rails.root.join(Rails.root, "app", "models").to_s
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to')`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join("app", "models").to_s
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          Rails.root.join(Rails.root, Rails.root, "app", "models").to_s
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to')`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join("app", "models").to_s
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          Rails.root.join(Rails.root.to_s, "app", "models").to_s
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to')`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join("app", "models").to_s
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          Rails.root.join(Rails.root.to_s, Rails.root.to_s, "app", "models").to_s
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to')`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join("app", "models").to_s
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join(File.join('app', 'models'), 'user.rb')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          File.join('app', 'models', 'user.rb')
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join('app', File.join('models'), 'user.rb')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          File.join('app', 'models', 'user.rb')
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join('app', 'models', File.join('user.rb'))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          File.join('app', 'models', 'user.rb')
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join(File.join('app', 'models').to_s, 'user.rb')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          File.join('app', 'models', 'user.rb')
+        RUBY
+      end
+    end
+
+    context 'when Rails.root is used redundantly within Rails.root.join' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join('app', File.join('models', 'user.rb').to_s)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          File.join('app', 'models', 'user.rb')
+        RUBY
+      end
+    end
+
     context 'when using Rails.root.join with some path strings' do
       it 'does not register an offense' do
         expect_no_offenses("Rails.root.join('app', 'models', 'user.rb')")
