@@ -444,6 +444,32 @@ RSpec.describe RuboCop::Cop::Rails::FilePath, :config do
       end
     end
 
+    context 'dsafas' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join(Rails.root.join('app', 'models'), 'user.rb')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join('app', 'models', 'user.rb').to_s
+        RUBY
+      end
+    end
+
+    context 'dsafas' do
+      it 'registers an offense once' do
+        expect_offense(<<~RUBY)
+          File.join(Rails.root.join('app', 'models').to_s, 'user.rb')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Prefer `Rails.root.join('path', 'to').to_s`.
+        RUBY
+
+        expect_correction(<<~RUBY)
+          Rails.root.join('app', 'models', 'user.rb').to_s
+        RUBY
+      end
+    end
+
     context 'when using Rails.root.join with some path strings' do
       it 'does not register an offense' do
         expect_no_offenses("Rails.root.join('app', 'models', 'user.rb')")

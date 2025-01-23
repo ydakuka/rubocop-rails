@@ -52,6 +52,10 @@ module RuboCop
           (send (const {nil? cbase} :File) :join (_ $_)* {(send #file_join_nodes? :to_s) #file_join_nodes?} ...)
         PATTERN
 
+        def_node_matcher :file_join_rails_root_join_nodes?, <<~PATTERN
+          (send (const {nil? cbase} :File) :join (_ $_)* {(send #rails_root_join_nodes? :to_s) #rails_root_join_nodes?} ...)
+        PATTERN
+
         def_node_search :rails_root_nodes?, <<~PATTERN
           (send (const {nil? cbase} :Rails) :root)
         PATTERN
@@ -73,6 +77,7 @@ module RuboCop
         end
 
         def on_send(node)
+          check_for_file_join_with_rails_root_join(node)
           check_for_file_join_with_file_join(node)
           check_for_file_join_with_rails_root(node)
           return unless node.receiver
@@ -108,8 +113,6 @@ module RuboCop
         def check_for_file_join_with_file_join(node)
           return unless file_join_file_join_nodes?(node)
 
-          # binding.pry
-
           register_offense(node, require_to_s: true) do |corrector|
             autocorrect_file_join_with_file_join(corrector, node) unless node.first_argument.array_type?
           end
@@ -121,6 +124,14 @@ module RuboCop
 
           register_offense(node, require_to_s: true) do |corrector|
             autocorrect_file_join_with_rails_root(corrector, node) unless node.first_argument.array_type?
+          end
+        end
+
+        def check_for_file_join_with_rails_root_join(node)
+          return unless file_join_rails_root_join_nodes?(node)
+
+          register_offense(node, require_to_s: true) do |corrector|
+            autocorrect_file_join_with_rails_root_join(corrector, node)
           end
         end
 
@@ -200,20 +211,6 @@ module RuboCop
           corrector.remove(extension_node)
         end
 
-        # def autocorrect_file_join_with_file_join(corrector, node)
-        #   new_args = node.arguments.reject do |arg|
-        #     file_join_typical?(arg)
-        #   end
-
-        #   new_source = "#{node.receiver.source}.#{node.method_name}(#{new_args.map(&:source).join(', ')})"
-
-        #   corrector.replace(node.loc.expression, new_source)
-        # end
-
-        # def file_join_typical?(arg)
-        #   arg.send_type? && arg.receiver == s(:const, nil, :File) && arg.method_name == :join
-        # end
-
         def autocorrect_file_join_with_file_join(corrector, node)
           new_args = node.arguments.flat_map do |arg|
             if file_join_nodes?(arg)
@@ -228,10 +225,6 @@ module RuboCop
           replacement = new_args.join(', ')
           corrector.replace(node.loc.expression, "File.join(#{replacement})")
         end
-
-        # def file_join_typical2?(arg)
-        #   # arg.send_type? && arg.receiver == s(:send, s(:const, nil, :Rails), :root) && arg.method_name == :to_s
-        # end
 
         def autocorrect_file_join_with_rails_root(corrector, node)
           replace_receiver_with_rails_root(corrector, node)
@@ -268,6 +261,40 @@ module RuboCop
 
         def append_to_string_conversion(corrector, node)
           corrector.insert_after(node, '.to_s')
+        end
+
+        def autocorrect_file_join_with_rails_root_join(corrector, node)
+          # Найти аргумент, который является вызовом Rails.root.join
+          rails_root_join_node = node.arguments.find do |arg|
+            rails_root_join_typical?(arg)
+          end
+
+          return unless rails_root_join_node
+
+          # Проверка, есть ли вызов `.to_s` на Rails.root.join
+          if rails_root_join_node.send_type? && rails_root_join_node.method?(:to_s)
+            rails_root_call = rails_root_join_node.receiver
+          else
+            rails_root_call = rails_root_join_node
+          end
+
+          # Извлечение аргументов из Rails.root.join(...)
+          rails_root_arguments = rails_root_call.arguments.map(&:source)
+
+          # Извлечение остальных аргументов из File.join
+          other_arguments = node.arguments.reject { |arg| arg == rails_root_join_node }.map(&:source)
+
+          # Объединение аргументов из Rails.root.join и оставшихся аргументов File.join
+          combined_arguments = (rails_root_arguments + other_arguments).join(', ')
+
+          # Финальное исправление
+          replacement = "Rails.root.join(#{combined_arguments}).to_s"
+
+          corrector.replace(node.loc.expression, replacement)
+        end
+
+        def rails_root_join_typical?(arg)
+          rails_root_join_nodes?(arg) || (arg.send_type? && rails_root_join_nodes?(arg.receiver))
         end
 
         def autocorrect_rails_root_join_with_string_arguments(corrector, node)
