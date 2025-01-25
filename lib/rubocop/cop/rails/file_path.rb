@@ -48,6 +48,10 @@ module RuboCop
           (send (const {nil? cbase} :File) :join ...)
         PATTERN
 
+        def_node_matcher :file_join_rails_root_nodes?, <<~PATTERN
+          (send (const {nil? cbase} :File) :join (_ $_)* {(send #rails_root_nodes? :to_s) #rails_root_nodes?} ...)
+        PATTERN
+
         def_node_matcher :file_join_file_join_nodes?, <<~PATTERN
           (send (const {nil? cbase} :File) :join (_ $_)* {(send #file_join_nodes? :to_s) #file_join_nodes?} ...)
         PATTERN
@@ -78,7 +82,7 @@ module RuboCop
 
         def on_send(node)
           check_for_file_join_with_rails_root_join(node)
-          check_for_file_join_with_file_join(node)
+          # check_for_file_join_with_file_join(node)
           check_for_file_join_with_rails_root(node)
           return unless node.receiver
 
@@ -119,7 +123,7 @@ module RuboCop
         end
 
         def check_for_file_join_with_rails_root(node)
-          return unless file_join_nodes?(node)
+          return unless file_join_rails_root_nodes?(node)
           return unless node.arguments.any? { |e| rails_root_nodes?(e) }
 
           register_offense(node, require_to_s: true) do |corrector|
