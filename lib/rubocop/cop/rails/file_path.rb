@@ -110,6 +110,7 @@ module RuboCop
           return unless file_join_with_rails_root_nodes?(node)
           return unless node.arguments.any? { |e| rails_root_nodes?(e) }
 
+          return if node.arguments.any? { |e| e.variable? }
           return if node.descendants.any? { |descendant| file_join_nodes?(descendant) }
 
           register_offense(node, require_to_s: true) do |corrector|
