@@ -99,6 +99,8 @@ module RuboCop
           return unless file_join_nodes?(node)
           return unless node.arguments.any? { |e| rails_root_nodes?(e) }
 
+          return if node.arguments.any? { |e| e.variable? }
+
           register_offense(node, require_to_s: true) do |corrector|
             autocorrect_file_join(corrector, node) unless node.first_argument.array_type?
           end

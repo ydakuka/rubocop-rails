@@ -322,6 +322,39 @@ RSpec.describe RuboCop::Cop::Rails::FilePath, :config do
         RUBY
       end
     end
+
+    context 'when using File.join with a local variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          default_path = '/assets'
+          File.join(Rails.root, 'public', default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with an instance variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', @default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with a class variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', @@default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with a global variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', $default_path)
+        RUBY
+      end
+    end
   end
 
   context 'when EnforcedStyle is `arguments`' do
@@ -589,6 +622,39 @@ RSpec.describe RuboCop::Cop::Rails::FilePath, :config do
 
         expect_correction(<<~RUBY)
           Rails.root.join(*%w[app models], "goober").to_s
+        RUBY
+      end
+    end
+
+    context 'when using File.join with a local variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          default_path = '/assets'
+          File.join(Rails.root, 'public', default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with an instance variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', @default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with a class variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', @@default_path)
+        RUBY
+      end
+    end
+
+    context 'when using File.join with a global variable' do
+      it 'registers an offense' do
+        expect_no_offenses(<<~RUBY)
+          File.join(Rails.root, 'public', $default_path)
         RUBY
       end
     end
