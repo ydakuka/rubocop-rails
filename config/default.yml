@@ -928,8 +928,8 @@ Rails/RequireDependency:
 
 Rails/RescueFromExceptionsVariableName:
   Description: 'Use consistent rescued exceptions variables naming.'
-  Enabled: true
-  VersionAdded: '2.4'
+  Enabled: 'pending'
+  VersionAdded: '<<next>>'
   PreferredName: e
 
 Rails/ResponseParsedBody:

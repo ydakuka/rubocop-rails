@@ -3,13 +3,10 @@
 module RuboCop
   module Cop
     module Rails
-      # This cop makes sure that rescued exceptions variables are named as
-      # expected.
+      # Ensures that rescued exception variables are named as expected.
       #
-      # The `PreferredName` config option takes a `String`. It represents
-      # the required name of the variable. Its default is `e` that is read
-      # from `Naming/RescuedExceptionsVariableName` cop in the main Rubocop
-      # repository.
+      # The `PreferredName` config option specifies the required name of the variable.
+      # Its default is `e`, as referenced from `Naming/RescuedExceptionsVariableName`.
       #
       # @example PreferredName: e (default)
       #   # bad
@@ -43,54 +40,72 @@ module RuboCop
       #     # do something
       #   end
       #
-      class RescueFromExceptionsVariableName < Cop
+      class RescueFromExceptionsVariableName < Base
         include ConfigurableEnforcedStyle
+        extend AutoCorrector
 
-        MSG = 'Use `%<preferred>s` instead of `%<bad>s`.'
+        MSG_LAMBDA = 'Use `(%<preferred>s)` instead of `(%<current>s)`.'
+        MSG_BLOCK = 'Use `|%<preferred>s|` instead of `|%<current>s|`.'
+
+        def_node_matcher :rescue_from_block_argument_variable?, <<~PATTERN
+          (block (send nil? :rescue_from ...) (args (arg $_)) _)
+        PATTERN
+
+        def_node_matcher :rescue_from_with_lambda_variable?, <<~PATTERN
+          (send nil? :rescue_from ... (hash <(pair (sym :with) (block _ (args (arg $_)) _))>))
+        PATTERN
+
+        def_node_matcher :rescue_from_with_block_variable?, <<~PATTERN
+          (send nil? :rescue_from ... {(block _ (args (arg $_)) _) (splat (block _ (args (arg $_)) _))})
+        PATTERN
 
         def on_block(node)
-          name = variable_name(node)
-          return unless name
-          return if preferred_name(name).to_sym == name
-
-          add_offense(node, location: offense_range(node))
-        end
-
-        def autocorrect(node)
-          lambda do |corrector|
-            offending_name = variable_name(node)
-            preferred_name = preferred_name(offending_name)
-            corrector.replace(offense_range(node), "|#{preferred_name}|")
+          rescue_from_block_argument_variable?(node) do |arg_name|
+            check_offense(node.first_argument, arg_name)
           end
+        end
+        alias on_numblock on_block
+
+        def on_send(node)
+          check_rescue_from_variable(node, :rescue_from_with_lambda_variable?)
+          check_rescue_from_variable(node, :rescue_from_with_block_variable?)
         end
 
         private
 
-        def offense_range(resbody)
-          variable = resbody.node_parts[1]
-          variable.loc.expression
-        end
-
-        def preferred_name(variable_name)
-          preferred_name = cop_config.fetch('PreferredName', 'e')
-          if variable_name.to_s.start_with?('_')
-            "_#{preferred_name}"
-          else
-            preferred_name
+        def check_rescue_from_variable(node, matcher)
+          send(matcher, node) do |arg_name|
+            lambda_arg = node.each_descendant(:args).first&.children&.first
+            check_offense(lambda_arg, arg_name) if lambda_arg
           end
         end
 
-        def variable_name(node)
-          asgn_node = node.node_parts[1]
-          return unless asgn_node
+        def check_offense(arg_node, arg_name)
+          preferred = preferred_name(arg_name)
+          return if arg_name.to_s == preferred
 
-          asgn_node.children.last&.source&.to_sym
+          range = arg_node.source_range.with(
+            begin_pos: arg_node.source_range.begin_pos - 1,
+            end_pos: arg_node.source_range.end_pos + 1
+          )
+
+          message = arg_node.parent.parent&.lambda? ? MSG_LAMBDA : MSG_BLOCK
+
+          add_offense(range, message: format(message, preferred: preferred, current: arg_name)) do |corrector|
+            corrector.replace(range, arg_node.parent.parent&.lambda? ? "(#{preferred})" : "|#{preferred}|")
+
+            parent_block = arg_node.ancestors.find(&:block_type?)
+            return unless parent_block
+
+            parent_block.each_descendant(:lvar).each do |lvar_node|
+              corrector.replace(lvar_node, preferred) if lvar_node.children.first == arg_name
+            end
+          end
         end
 
-        def message(node)
-          offending_name = variable_name(node)
-          preferred_name = preferred_name(offending_name)
-          format(MSG, preferred: preferred_name, bad: offending_name)
+        def preferred_name(name)
+          config_name = cop_config.fetch('PreferredName', 'e')
+          name.start_with?('_') ? "_#{config_name}" : config_name
         end
       end
     end
